@@ -17,7 +17,13 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-  } from "@/components/ui/dialog"
+} from "@/components/ui/dialog"
+
+interface Permission {
+    permissionId: string;
+    permissionName: string;
+    description: string;
+}
 
 interface LoginResponse {
     success: boolean;
@@ -27,6 +33,7 @@ interface LoginResponse {
         username: string;
         jwtToken: string;
         tokenExpiry: string;
+        permissions: Permission[];
     };
     transactionId: string;
     timestamp: string;
@@ -59,6 +66,7 @@ export default function LoginPage() {
                 localStorage.setItem('jwtToken', data.data.jwtToken)
                 localStorage.setItem('tokenExpiry', data.data.tokenExpiry)
                 localStorage.setItem('username', data.data.username)
+                localStorage.setItem('permissions', JSON.stringify(data.data.permissions))
 
                 toast({
                     title: "Inicio de sesión exitoso",

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
@@ -34,10 +34,34 @@ const mockUsers: User[] = [
   { id: '3', name: 'Carlos López', bank: 'Interbank' },
 ];
 
+async function checkServiceHealth() {
+  try {
+    const response = await fetch('http://localhost:5188/ssptbpetdlt/transaction/api/v1/Transaction/node-info');
+    const data = await response.json();
+    return {
+      isHealthy: data.success && data.data.isHealthy,
+      version: data.data.version,
+      networkName: data.data.networkName,
+    };
+  } catch (error) {
+    console.error('Error checking service health:', error);
+    return { isHealthy: false, version: 'Unknown', networkName: 'Unknown' };
+  }
+}
+
 const UrlGeneratorPage = () => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [generatedUrl, setGeneratedUrl] = useState('')
+  const [serviceHealth, setServiceHealth] = useState<{ isHealthy: boolean, version: string, networkName: string } | null>(null)
   const { toast } = useToast()
+
+  useEffect(() => {
+    const fetchServiceHealth = async () => {
+      const health = await checkServiceHealth();
+      setServiceHealth(health);
+    };
+    fetchServiceHealth();
+  }, []);
 
   const handleGenerateUrl = () => {
     if (selectedUser) {
@@ -84,6 +108,7 @@ const UrlGeneratorPage = () => {
           <TabsList className="bg-gray-800">
             <TabsTrigger value="generator" className="data-[state=active]:bg-gray-700">Generador de URL</TabsTrigger>
             <TabsTrigger value="documentation" className="data-[state=active]:bg-gray-700">Documentación API</TabsTrigger>
+            <TabsTrigger value="health" className="data-[state=active]:bg-gray-700">Estado del Servicio</TabsTrigger>
           </TabsList>
           <TabsContent value="generator">
             <Card className="bg-gray-800 text-gray-100">
@@ -146,6 +171,51 @@ const UrlGeneratorPage = () => {
                     <li><code className="bg-gray-700 p-1 rounded text-gray-100">/balance</code> - Obtener saldo actual</li>
                   </ul>
                 </section>
+                <section>
+                  <h2 className="text-xl font-semibold mb-2 text-gray-200">Estado del Servicio</h2>
+                  <p className="text-gray-300 mb-2">
+                    Puedes verificar el estado del servicio utilizando el siguiente endpoint:
+                  </p>
+                  <code className="block bg-gray-700 p-2 rounded text-gray-100 mb-2">
+                    GET /ssptbpetdlt/transaction/api/v1/Transaction/node-info
+                  </code>
+                  <p className="text-gray-300 mb-2">Este endpoint devuelve la siguiente información:</p>
+                  <ul className="list-disc pl-5 space-y-2 text-gray-300">
+                    <li><code className="bg-gray-700 p-1 rounded text-gray-100">success</code>: Indica si la solicitud fue exitosa</li>
+                    <li><code className="bg-gray-700 p-1 rounded text-gray-100">statusCode</code>: Código de estado HTTP</li>
+                    <li><code className="bg-gray-700 p-1 rounded text-gray-100">message</code>: Mensaje descriptivo</li>
+                    <li><code className="bg-gray-700 p-1 rounded text-gray-100">data</code>: Objeto con información detallada:
+                      <ul className="list-disc pl-5 mt-2">
+                        <li><code className="bg-gray-700 p-1 rounded text-gray-100">isHealthy</code>: Estado de salud del nodo</li>
+                        <li><code className="bg-gray-700 p-1 rounded text-gray-100">version</code>: Versión del servicio</li>
+                        <li><code className="bg-gray-700 p-1 rounded text-gray-100">networkName</code>: Nombre de la red</li>
+                      </ul>
+                    </li>
+                    <li><code className="bg-gray-700 p-1 rounded text-gray-100">transactionId</code>: ID único de la transacción</li>
+                    <li><code className="bg-gray-700 p-1 rounded text-gray-100">timestamp</code>: Marca de tiempo de la respuesta</li>
+                  </ul>
+                </section>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="health">
+            <Card className="bg-gray-800 text-gray-100">
+              <CardHeader>
+                <CardTitle>Estado del Servicio</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {serviceHealth ? (
+                  <div className="space-y-2">
+                    <p>Estado: {serviceHealth.isHealthy ?
+                      <span className="text-green-400">Saludable</span> :
+                      <span className="text-red-400">No Saludable</span>}
+                    </p>
+                    <p>Versión: {serviceHealth.version}</p>
+                    <p>Nombre de la Red: {serviceHealth.networkName}</p>
+                  </div>
+                ) : (
+                  <p>Cargando información del servicio...</p>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

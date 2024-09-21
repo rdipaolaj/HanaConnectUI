@@ -4,19 +4,25 @@ import { useRouter, usePathname } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Icons } from "@/components/icons"
 
+interface Permission {
+    permissionId: string;
+    permissionName: string;
+    description: string;
+}
+
 // Función para generar una URL única por usuario
 const generateUniqueUrl = (userId: string) => {
-  return `https://api.hanaconnect.com/user/${userId}`
+    return `https://api.hanaconnect.com/user/${userId}`
 }
 
 const Logo = ({ isCollapsed }: { isCollapsed: boolean }) => (
-  <Link href="/" className="flex items-center">
-    <Icons.network className="h-8 w-8 text-white" />
-    {!isCollapsed && <span className="ml-2 text-xl font-bold text-white">Hana Connect</span>}
-  </Link>
+    <Link href="/" className="flex items-center">
+        <Icons.network className="h-8 w-8 text-white" />
+        {!isCollapsed && <span className="ml-2 text-xl font-bold text-white">Hana Connect</span>}
+    </Link>
 )
 
-const Sidebar = ({ isCollapsed, toggleSidebar, userUrl }: { isCollapsed: boolean; toggleSidebar: () => void; userUrl: string }) => {
+const Sidebar = ({ isCollapsed, toggleSidebar, userUrl, permissions }: { isCollapsed: boolean; toggleSidebar: () => void; userUrl: string; permissions: Permission[] }) => {
     const router = useRouter()
     const pathname = usePathname()
 
@@ -24,24 +30,29 @@ const Sidebar = ({ isCollapsed, toggleSidebar, userUrl }: { isCollapsed: boolean
         localStorage.removeItem('username')
         localStorage.removeItem('jwtToken')
         localStorage.removeItem('tokenExpiry')
-        localStorage.removeItem('userId')
+        localStorage.removeItem('permissions')
         router.push('/login')
     }
 
-    const NavItem = ({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) => (
-        <Link 
-            href={href} 
-            className={`flex items-center py-2 px-4 hover:bg-gray-800 rounded ${
-                isCollapsed ? 'justify-center' : ''
-            } ${pathname === href ? 'bg-gray-800' : ''}`}
-            title={isCollapsed ? label : ''}
-        >
-            <div className="flex items-center justify-center w-5 h-5">
-                {icon}
-            </div>
-            {!isCollapsed && <span className="ml-3">{label}</span>}
-        </Link>
-    )
+    const NavItem = ({ href, icon, label, permissionName }: { href: string; icon: React.ReactNode; label: string; permissionName: string }) => {
+        const hasPermission = permissions.some(p => p.permissionName === permissionName)
+
+        if (!hasPermission) return null
+
+        return (
+            <Link
+                href={href}
+                className={`flex items-center py-2 px-4 hover:bg-gray-800 rounded ${isCollapsed ? 'justify-center' : ''
+                    } ${pathname === href ? 'bg-gray-800' : ''}`}
+                title={isCollapsed ? label : ''}
+            >
+                <div className="flex items-center justify-center w-5 h-5">
+                    {icon}
+                </div>
+                {!isCollapsed && <span className="ml-3">{label}</span>}
+            </Link>
+        )
+    }
 
     return (
         <div className={`flex flex-col h-full bg-gray-900 text-white ${isCollapsed ? 'w-16' : 'w-64'} transition-all duration-300`}>
@@ -54,25 +65,25 @@ const Sidebar = ({ isCollapsed, toggleSidebar, userUrl }: { isCollapsed: boolean
             <nav className="flex-1">
                 <ul className="space-y-2 p-4">
                     <li>
-                        <NavItem href="/dashboard" icon={<Icons.home className="h-5 w-5" />} label="Dashboard" />
+                        <NavItem href="/dashboard" icon={<Icons.home className="h-5 w-5" />} label="Dashboard" permissionName="Access Dashboard" />
                     </li>
                     <li>
-                        <NavItem href="/transactions" icon={<Icons.creditCard className="h-5 w-5" />} label="Transacciones" />
+                        <NavItem href="/transactions" icon={<Icons.creditCard className="h-5 w-5" />} label="Transacciones" permissionName="Access Transactions" />
                     </li>
                     <li>
-                        <NavItem href="/security" icon={<Icons.shield className="h-5 w-5" />} label="Seguridad" />
+                        <NavItem href="/security" icon={<Icons.shield className="h-5 w-5" />} label="Seguridad" permissionName="Access Security" />
                     </li>
                     <li>
-                        <NavItem href="/users" icon={<Icons.users className="h-5 w-5" />} label="Usuarios" />
+                        <NavItem href="/users" icon={<Icons.users className="h-5 w-5" />} label="Usuarios" permissionName="Access Users" />
                     </li>
                     <li>
-                        <NavItem href="/profile" icon={<Icons.user className="h-5 w-5" />} label="Perfil" />
+                        <NavItem href="/profile" icon={<Icons.user className="h-5 w-5" />} label="Perfil" permissionName="Access Profile" />
                     </li>
                     <li>
-                        <NavItem href="/tests" icon={<Icons.testTube className="h-5 w-5" />} label="Pruebas" />
+                        <NavItem href="/tests" icon={<Icons.testTube className="h-5 w-5" />} label="Pruebas" permissionName="Access Tests" />
                     </li>
                     <li>
-                        <NavItem href="/url-generator" icon={<Icons.link className="h-5 w-5" />} label="Generador URL" />
+                        <NavItem href="/url-generator" icon={<Icons.link className="h-5 w-5" />} label="Generador URL" permissionName="Access URL Generator" />
                     </li>
                 </ul>
             </nav>
@@ -93,6 +104,8 @@ const Sidebar = ({ isCollapsed, toggleSidebar, userUrl }: { isCollapsed: boolean
 const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [isCollapsed, setIsCollapsed] = useState(false)
     const [userUrl, setUserUrl] = useState('')
+    const [permissions, setPermissions] = useState<Permission[]>([])
+    const router = useRouter()
 
     useEffect(() => {
         const savedState = localStorage.getItem('sidebarCollapsed')
@@ -100,13 +113,31 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             setIsCollapsed(JSON.parse(savedState))
         }
 
+        const storedPermissions = localStorage.getItem('permissions')
+        if (storedPermissions) {
+            setPermissions(JSON.parse(storedPermissions))
+        }
+
+        const jwtToken = localStorage.getItem('jwtToken')
+        const tokenExpiry = localStorage.getItem('tokenExpiry')
+
+        if (!jwtToken || !tokenExpiry) {
+            router.push('/login')
+            return
+        }
+
+        if (new Date(tokenExpiry) < new Date()) {
+            handleLogout()
+            return
+        }
+
         // Generar o recuperar la URL única del usuario
-        const userId = localStorage.getItem('userId')
-        if (userId) {
-            const generatedUrl = generateUniqueUrl(userId)
+        const username = localStorage.getItem('username')
+        if (username) {
+            const generatedUrl = generateUniqueUrl(username)
             setUserUrl(generatedUrl)
         }
-    }, [])
+    }, [router])
 
     const toggleSidebar = () => {
         const newState = !isCollapsed
@@ -114,9 +145,17 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         localStorage.setItem('sidebarCollapsed', JSON.stringify(newState))
     }
 
+    const handleLogout = () => {
+        localStorage.removeItem('username')
+        localStorage.removeItem('jwtToken')
+        localStorage.removeItem('tokenExpiry')
+        localStorage.removeItem('permissions')
+        router.push('/login')
+    }
+
     return (
         <div className="flex h-screen bg-gray-100">
-            <Sidebar isCollapsed={isCollapsed} toggleSidebar={toggleSidebar} userUrl={userUrl} />
+            <Sidebar isCollapsed={isCollapsed} toggleSidebar={toggleSidebar} userUrl={userUrl} permissions={permissions} />
             <div className="flex-1 flex flex-col overflow-hidden">
                 <header className="bg-white shadow">
                     <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">

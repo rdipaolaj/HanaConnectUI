@@ -29,7 +29,14 @@ interface ServerResponse {
         userId?: string;
     };
     transactionId: string;
-    errors: string[];
+    errors: Array<{
+        code: string;
+        description: string;
+    }>;
+}
+
+interface FormErrors {
+    [key: string]: string[];
 }
 
 export default function RegisterPage() {
@@ -37,6 +44,8 @@ export default function RegisterPage() {
     const [showSuccessModal, setShowSuccessModal] = useState(false)
     const [showWeakPasswordModal, setShowWeakPasswordModal] = useState(false)
     const [password, setPassword] = useState('')
+    const [userRole, setUserRole] = useState('')
+    const [formErrors, setFormErrors] = useState<FormErrors>({})
     const { toast } = useToast()
     const router = useCustomRouter()
 
@@ -74,7 +83,7 @@ export default function RegisterPage() {
             phoneNumber: userData.phoneNumber,
             hashedPassword: userData.password,
             userRole: userData.userRole,
-            companyName: userData.companyName,
+            companyName: userData.companyOrFullName,
             department: userData.department,
             jobTitle: userData.jobTitle
         }
@@ -88,23 +97,69 @@ export default function RegisterPage() {
                 console.log('Usuario creado:', data.data.userId)
                 setShowSuccessModal(true)
             } else {
-                throw new Error(data.message || "Error desconocido en el registro")
+                handleErrors(data)
             }
         } catch (error) {
             console.error('Error:', error)
-            let errorMessage = "Hubo un problema al crear tu cuenta. Por favor, intenta de nuevo."
             if (axios.isAxiosError(error) && error.response) {
                 const serverError = error.response.data as ServerResponse
-                errorMessage = serverError.message || serverError.errors?.join(", ") || errorMessage
+                handleErrors(serverError)
+            } else {
+                toast({
+                    title: "Error inesperado",
+                    description: "Ha ocurrido un error inesperado. Por favor, intenta de nuevo más tarde.",
+                    variant: "destructive",
+                })
             }
-            toast({
-                title: "Error en el registro",
-                description: errorMessage,
-                variant: "destructive",
-            })
         } finally {
             setLoading(false)
         }
+    }
+
+    const handleErrors = (data: ServerResponse) => {
+        if (data.errors && data.errors.length > 0) {
+            const newFormErrors: FormErrors = {}
+            data.errors.forEach(error => {
+                const field = getFieldFromErrorCode(error.code)
+                if (field) {
+                    if (!newFormErrors[field]) {
+                        newFormErrors[field] = []
+                    }
+                    newFormErrors[field].push(error.description)
+                }
+            })
+            setFormErrors(newFormErrors)
+
+            // Mostrar toast con el mensaje general de error
+            toast({
+                title: "Error en el registro",
+                description: data.message,
+                variant: "destructive",
+            })
+        } else {
+            toast({
+                title: "Error en el registro",
+                description: data.message || "Ha ocurrido un error inesperado.",
+                variant: "destructive",
+            })
+        }
+    }
+
+    const getFieldFromErrorCode = (code: string): string | null => {
+        const fieldMap: { [key: string]: string } = {
+            'USER0001': 'username',
+            'USER0002': 'email',
+            'USER0003': 'phoneNumber',
+            'USER0004': 'password',
+            'USER0005': 'userRole',
+            'USER0006': 'companyOrFullName',
+            'USER0007': 'department',
+            'USER0008': 'jobTitle',
+            'USER0009': 'username',
+            'USER0010': 'email',
+            'USER0011': 'phoneNumber',
+        }
+        return fieldMap[code] || null
     }
 
     const handleCloseSuccessModal = () => {
@@ -115,6 +170,17 @@ export default function RegisterPage() {
     const handleConfirmWeakPassword = () => {
         setShowWeakPasswordModal(false)
         submitForm()
+    }
+
+    const renderFieldError = (field: string) => {
+        if (formErrors[field] && formErrors[field].length > 0) {
+            return (
+                <p className="text-red-500 text-sm mt-1">
+                    {formErrors[field].join('. ')}
+                </p>
+            )
+        }
+        return null
     }
 
     return (
@@ -161,6 +227,7 @@ export default function RegisterPage() {
                                         required
                                         className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-gray-400"
                                     />
+                                    {renderFieldError('username')}
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="email" className="text-gray-700">Correo electrónico</Label>
@@ -172,6 +239,7 @@ export default function RegisterPage() {
                                         required
                                         className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-gray-400"
                                     />
+                                    {renderFieldError('email')}
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="phoneNumber" className="text-gray-700">Número de teléfono</Label>
@@ -183,6 +251,7 @@ export default function RegisterPage() {
                                         required
                                         className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-gray-400"
                                     />
+                                    {renderFieldError('phoneNumber')}
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="password" className="text-gray-700">Contraseña</Label>
@@ -196,6 +265,7 @@ export default function RegisterPage() {
                                         onChange={(e) => setPassword(e.target.value)}
                                     />
                                     <PasswordStrengthMeter password={password} />
+                                    {renderFieldError('password')}
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="userRole" className="text-gray-700">Rol de usuario</Label>
@@ -204,22 +274,27 @@ export default function RegisterPage() {
                                         name="userRole"
                                         required
                                         className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-gray-400"
+                                        onChange={(e) => setUserRole(e.target.value)}
+                                        value={userRole}
                                     >
                                         <option value="">Seleccione un rol</option>
-                                        <option value="admin">Administrador</option>
-                                        <option value="user">Usuario</option>
-                                        <option value="guest">Invitado</option>
+                                        <option value="Company">Empresa</option>
+                                        <option value="User">Usuario</option>
                                     </select>
+                                    {renderFieldError('userRole')}
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="companyName" className="text-gray-700">Nombre de la empresa</Label>
+                                    <Label htmlFor="companyOrFullName" className="text-gray-700">
+                                        {userRole === 'Company' ? 'Nombre de la empresa' : 'Nombre y Apellido Completo'}
+                                    </Label>
                                     <Input
-                                        id="companyName"
-                                        name="companyName"
-                                        placeholder="Hana Connect"
+                                        id="companyOrFullName"
+                                        name="companyOrFullName"
+                                        placeholder={userRole === 'Company' ? "Hana Connect" : "Juan Pérez"}
                                         required
                                         className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-gray-400"
                                     />
+                                    {renderFieldError('companyOrFullName')}
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="department" className="text-gray-700">Departamento</Label>
@@ -230,6 +305,7 @@ export default function RegisterPage() {
                                         required
                                         className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-gray-400"
                                     />
+                                    {renderFieldError('department')}
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="jobTitle" className="text-gray-700">Título del trabajo</Label>
@@ -240,6 +316,7 @@ export default function RegisterPage() {
                                         required
                                         className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-gray-400"
                                     />
+                                    {renderFieldError('jobTitle')}
                                 </div>
                             </div>
                             <Button
