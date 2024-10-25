@@ -31,6 +31,8 @@ interface LoginResponse {
     message: string;
     data: {
         username: string;
+        userId: string;
+        rolId: string;
         jwtToken: string;
         tokenExpiry: string;
         permissions: Permission[];
@@ -66,6 +68,8 @@ export default function LoginPage() {
                 localStorage.setItem('jwtToken', data.data.jwtToken)
                 localStorage.setItem('tokenExpiry', data.data.tokenExpiry)
                 localStorage.setItem('username', data.data.username)
+                localStorage.setItem('userId', data.data.userId)
+                localStorage.setItem('rolId', data.data.rolId)
                 localStorage.setItem('permissions', JSON.stringify(data.data.permissions))
 
                 toast({
