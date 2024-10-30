@@ -18,6 +18,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
+import { getLoginUrl } from '@/utils/api'
 
 interface Permission {
     permissionId: string;
@@ -31,6 +32,8 @@ interface LoginResponse {
     message: string;
     data: {
         username: string;
+        userId: string;
+        rolId: string;
         jwtToken: string;
         tokenExpiry: string;
         permissions: Permission[];
@@ -55,8 +58,7 @@ export default function LoginPage() {
         setLoading(true)
 
         try {
-            const response = await axios.post<LoginResponse>(
-                'http://localhost:5213/ssptbpetdlt/auth/api/v1/Login/login',
+            const response = await axios.post<LoginResponse>(getLoginUrl(),
                 { username, password }
             )
 
@@ -66,6 +68,8 @@ export default function LoginPage() {
                 localStorage.setItem('jwtToken', data.data.jwtToken)
                 localStorage.setItem('tokenExpiry', data.data.tokenExpiry)
                 localStorage.setItem('username', data.data.username)
+                localStorage.setItem('userId', data.data.userId)
+                localStorage.setItem('rolId', data.data.rolId)
                 localStorage.setItem('permissions', JSON.stringify(data.data.permissions))
 
                 toast({

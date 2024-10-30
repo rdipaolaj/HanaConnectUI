@@ -3,6 +3,16 @@ import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Icons } from "@/components/icons"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface Permission {
     permissionId: string;
@@ -15,6 +25,16 @@ const generateUniqueUrl = (userId: string) => {
     return `https://api.hanaconnect.com/user/${userId}`
 }
 
+// Función para generar un color aleatorio para el avatar
+const getRandomColor = () => {
+    const letters = '0123456789ABCDEF';
+    let color = '#';
+    for (let i = 0; i < 6; i++) {
+        color += letters[Math.floor(Math.random() * 16)];
+    }
+    return color;
+}
+
 const Logo = ({ isCollapsed }: { isCollapsed: boolean }) => (
     <Link href="/" className="flex items-center">
         <Icons.network className="h-8 w-8 text-white" />
@@ -22,7 +42,7 @@ const Logo = ({ isCollapsed }: { isCollapsed: boolean }) => (
     </Link>
 )
 
-const Sidebar = ({ isCollapsed, toggleSidebar, userUrl, permissions }: { isCollapsed: boolean; toggleSidebar: () => void; userUrl: string; permissions: Permission[] }) => {
+const Sidebar = ({ isCollapsed, toggleSidebar, userUrl, permissions, username }: { isCollapsed: boolean; toggleSidebar: () => void; userUrl: string; permissions: Permission[]; username: string }) => {
     const router = useRouter()
     const pathname = usePathname()
 
@@ -51,6 +71,39 @@ const Sidebar = ({ isCollapsed, toggleSidebar, userUrl, permissions }: { isColla
                 </div>
                 {!isCollapsed && <span className="ml-3">{label}</span>}
             </Link>
+        )
+    }
+
+    const UserMenu = () => {
+        const initials = username.split(' ').map(n => n[0]).join('').toUpperCase()
+        const avatarColor = getRandomColor()
+
+        return (
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                        <Avatar className="h-8 w-8">
+                            <AvatarImage src="/avatars/01.png" alt={username} />
+                            <AvatarFallback style={{backgroundColor: avatarColor}}>{initials}</AvatarFallback>
+                        </Avatar>
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                    <DropdownMenuLabel className="font-normal">
+                        <div className="flex flex-col space-y-1">
+                            <p className="text-sm font-medium leading-none">{username}</p>
+                            <p className="text-xs leading-none text-muted-foreground">
+                                {userUrl}
+                            </p>
+                        </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout}>
+                        <Icons.logOut className="mr-2 h-4 w-4" />
+                        <span>Cerrar sesión</span>
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
         )
     }
 
@@ -87,15 +140,8 @@ const Sidebar = ({ isCollapsed, toggleSidebar, userUrl, permissions }: { isColla
                     </li>
                 </ul>
             </nav>
-            {!isCollapsed && (
-                <div className="p-4 text-xs">
-                    <p className="truncate">URL única: {userUrl}</p>
-                </div>
-            )}
             <div className="p-4">
-                <Button onClick={handleLogout} variant="outline" className={`w-full ${isCollapsed ? 'p-2 justify-center' : ''}`}>
-                    {isCollapsed ? <Icons.logOut className="h-5 w-5" /> : 'Cerrar sesión'}
-                </Button>
+                <UserMenu />
             </div>
         </div>
     )
@@ -105,6 +151,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [isCollapsed, setIsCollapsed] = useState(false)
     const [userUrl, setUserUrl] = useState('')
     const [permissions, setPermissions] = useState<Permission[]>([])
+    const [username, setUsername] = useState('')
     const router = useRouter()
 
     useEffect(() => {
@@ -120,8 +167,9 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
         const jwtToken = localStorage.getItem('jwtToken')
         const tokenExpiry = localStorage.getItem('tokenExpiry')
+        const storedUsername = localStorage.getItem('username')
 
-        if (!jwtToken || !tokenExpiry) {
+        if (!jwtToken || !tokenExpiry || !storedUsername) {
             router.push('/login')
             return
         }
@@ -131,12 +179,11 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             return
         }
 
+        setUsername(storedUsername)
+
         // Generar o recuperar la URL única del usuario
-        const username = localStorage.getItem('username')
-        if (username) {
-            const generatedUrl = generateUniqueUrl(username)
-            setUserUrl(generatedUrl)
-        }
+        const generatedUrl = generateUniqueUrl(storedUsername)
+        setUserUrl(generatedUrl)
     }, [router])
 
     const toggleSidebar = () => {
@@ -154,23 +201,45 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     }
 
     return (
-        <div className="flex h-screen bg-gray-100">
-            <Sidebar isCollapsed={isCollapsed} toggleSidebar={toggleSidebar} userUrl={userUrl} permissions={permissions} />
-            <div className="flex-1 flex flex-col overflow-hidden">
-                <header className="bg-white shadow">
-                    <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-                        <h1 className="text-3xl font-bold text-gray-900">
-                            Sistema de Seguridad Bancaria DLT
-                        </h1>
-                    </div>
-                </header>
-                <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-200">
-                    <div className="container mx-auto px-6 py-8">
-                        {children}
-                    </div>
-                </main>
+        <TooltipProvider>
+            <div className="flex h-screen bg-gray-100">
+                <Sidebar 
+                    isCollapsed={isCollapsed} 
+                    toggleSidebar={toggleSidebar} 
+                    userUrl={userUrl} 
+                    permissions={permissions}
+                    username={username}
+                />
+                <div className="flex-1 flex flex-col overflow-hidden">
+                    <header className="bg-white shadow">
+                        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+                            <h1 className="text-3xl font-bold text-gray-900">
+                                Sistema de Seguridad Bancaria DLT
+                            </h1>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <div className="flex items-center space-x-2">
+                                        <span className="text-sm font-medium">Bienvenido, {username}</span>
+                                        <Avatar className="h-8 w-8">
+                                            <AvatarImage src="/avatars/01.png" alt={username} />
+                                            <AvatarFallback>{username.split(' ').map(n => n[0]).join('').toUpperCase()}</AvatarFallback>
+                                        </Avatar>
+                                    </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>URL única: {userUrl}</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </div>
+                    </header>
+                    <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-200">
+                        <div className="container mx-auto px-6 py-8">
+                            {children}
+                        </div>
+                    </main>
+                </div>
             </div>
-        </div>
+        </TooltipProvider>
     )
 }
 

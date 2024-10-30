@@ -10,40 +10,77 @@ import { ToastProvider } from "@/components/ui/toast"
 import { useToast } from "@/components/ui/use-toast"
 import { Icons } from "@/components/icons"
 import AdminLayout from '@/components/layout/AdminLayout'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { ChevronDown, ChevronUp, ChevronsUpDown } from 'lucide-react'
+import { getTransactionUrl } from '@/utils/api'
 
 interface Transaction {
     id: string
-    amount: number
-    fromAccount: string
-    toAccount: string
-    timestamp: string
-    status: 'completed' | 'pending' | 'failed'
+    userBankTransactionId: string
+    transactionDate: string
+    status: number
+    blockId: string
+    transactionData: string
 }
 
 export default function Transactions() {
     const [loading, setLoading] = useState(true)
     const [transactions, setTransactions] = useState<Transaction[]>([])
-    const [apiUrl, setApiUrl] = useState('')
+    const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([])
+    const [currentPage, setCurrentPage] = useState(1)
+    const [pageSize, setPageSize] = useState(10)
+    const [totalPages, setTotalPages] = useState(1)
+    const [searchTerm, setSearchTerm] = useState('')
+    const [sortColumn, setSortColumn] = useState<keyof Transaction>('transactionDate')
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
     const { toast } = useToast()
 
     useEffect(() => {
-        const storedUsername = localStorage.getItem('username')
-        if (storedUsername) {
-            setApiUrl(`https://api.bancoseguro.pe/users/${storedUsername}`)
-            fetchTransactions()
-        }
+        fetchTransactions()
     }, [])
+
+    useEffect(() => {
+        const filtered = transactions.filter(transaction =>
+            transaction.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            transaction.blockId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            parseTransactionData(transaction.transactionData).toLowerCase().includes(searchTerm.toLowerCase())
+        )
+        setFilteredTransactions(filtered)
+        setTotalPages(Math.ceil(filtered.length / pageSize))
+        setCurrentPage(1)
+    }, [searchTerm, transactions, pageSize])
 
     const fetchTransactions = async () => {
         try {
-            // Datos de ejemplo para desarrollo
-            const mockTransactions: Transaction[] = [
-                { id: '1', amount: 1000, fromAccount: '123456', toAccount: '789012', timestamp: '2024-09-01T12:00:00Z', status: 'completed' },
-                { id: '2', amount: 500, fromAccount: '789012', toAccount: '345678', timestamp: '2024-09-01T13:30:00Z', status: 'pending' },
-                { id: '3', amount: 750, fromAccount: '345678', toAccount: '123456', timestamp: '2024-09-01T14:45:00Z', status: 'completed' },
-            ];
+            const userId = localStorage.getItem('userId')
+            const rolId = localStorage.getItem('rolId')
+            const jwtToken = localStorage.getItem('jwtToken')
 
-            setTransactions(mockTransactions);
+            if (!userId || !rolId || !jwtToken) {
+                throw new Error('User information not found')
+            }
+
+            const response = await axios.get(getTransactionUrl(userId, rolId),
+                {
+                    headers: {
+                        'Authorization': `Bearer ${jwtToken}`
+                    }
+                }
+            )
+
+            if (response.data.success && response.data.statusCode === 200) {
+                setTransactions(response.data.data)
+                setFilteredTransactions(response.data.data)
+                setTotalPages(Math.ceil(response.data.data.length / pageSize))
+            } else {
+                throw new Error(response.data.message || 'Failed to fetch transactions')
+            }
         } catch (error) {
             console.error('Error fetching transactions:', error)
             toast({
@@ -51,11 +88,55 @@ export default function Transactions() {
                 description: "No se pudieron cargar las transacciones.",
                 variant: "destructive",
             })
-            // Si hay un error, establece transactions como un array vacío
             setTransactions([])
+            setFilteredTransactions([])
         } finally {
             setLoading(false)
         }
+    }
+
+    const parseTransactionData = (data: string) => {
+        try {
+            const parsed = JSON.parse(data)
+            return `${parsed.amount} ${parsed.currency}`
+        } catch (error) {
+            console.error('Error parsing transaction data:', error)
+            return 'N/A'
+        }
+    }
+
+    const getStatusText = (status: number) => {
+        switch (status) {
+            case 0: return 'Pendiente'
+            case 1: return 'Completada'
+            case 2: return 'Fallida'
+            default: return 'Desconocido'
+        }
+    }
+
+    const handleSort = (column: keyof Transaction) => {
+        if (column === sortColumn) {
+            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+        } else {
+            setSortColumn(column)
+            setSortDirection('asc')
+        }
+    }
+
+    const sortedTransactions = [...filteredTransactions].sort((a, b) => {
+        if (a[sortColumn] < b[sortColumn]) return sortDirection === 'asc' ? -1 : 1
+        if (a[sortColumn] > b[sortColumn]) return sortDirection === 'asc' ? 1 : -1
+        return 0
+    })
+
+    const paginatedTransactions = sortedTransactions.slice(
+        (currentPage - 1) * pageSize,
+        currentPage * pageSize
+    )
+
+    const SortIcon = ({ column }: { column: keyof Transaction }) => {
+        if (column !== sortColumn) return <ChevronsUpDown className="ml-2 h-4 w-4" />
+        return sortDirection === 'asc' ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />
     }
 
     if (loading) {
@@ -75,27 +156,54 @@ export default function Transactions() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        {transactions.length > 0 ? (
+                        <div className="flex justify-between items-center mb-4">
+                            <Input
+                                placeholder="Buscar transacciones..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="max-w-sm"
+                            />
+                            <Select value={pageSize.toString()} onValueChange={(value) => setPageSize(Number(value))}>
+                                <SelectTrigger className="w-[180px]">
+                                    <SelectValue placeholder="Seleccionar tamaño de página" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="5">5 por página</SelectItem>
+                                    <SelectItem value="10">10 por página</SelectItem>
+                                    <SelectItem value="20">20 por página</SelectItem>
+                                    <SelectItem value="50">50 por página</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        {paginatedTransactions.length > 0 ? (
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>ID</TableHead>
-                                        <TableHead>Monto</TableHead>
-                                        <TableHead>De</TableHead>
-                                        <TableHead>Para</TableHead>
-                                        <TableHead>Fecha</TableHead>
-                                        <TableHead>Estado</TableHead>
+                                        <TableHead className="cursor-pointer" onClick={() => handleSort('id')}>
+                                            ID <SortIcon column="id" />
+                                        </TableHead>
+                                        <TableHead className="cursor-pointer" onClick={() => handleSort('transactionData')}>
+                                            Monto <SortIcon column="transactionData" />
+                                        </TableHead>
+                                        <TableHead className="cursor-pointer" onClick={() => handleSort('transactionDate')}>
+                                            Fecha <SortIcon column="transactionDate" />
+                                        </TableHead>
+                                        <TableHead className="cursor-pointer" onClick={() => handleSort('status')}>
+                                            Estado <SortIcon column="status" />
+                                        </TableHead>
+                                        <TableHead className="cursor-pointer" onClick={() => handleSort('blockId')}>
+                                            Block ID <SortIcon column="blockId" />
+                                        </TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {transactions.map((transaction) => (
+                                    {paginatedTransactions.map((transaction) => (
                                         <TableRow key={transaction.id}>
                                             <TableCell>{transaction.id}</TableCell>
-                                            <TableCell>S/. {transaction.amount.toFixed(2)}</TableCell>
-                                            <TableCell>{transaction.fromAccount}</TableCell>
-                                            <TableCell>{transaction.toAccount}</TableCell>
-                                            <TableCell>{new Date(transaction.timestamp).toLocaleString()}</TableCell>
-                                            <TableCell>{transaction.status}</TableCell>
+                                            <TableCell>{parseTransactionData(transaction.transactionData)}</TableCell>
+                                            <TableCell>{new Date(transaction.transactionDate).toLocaleString()}</TableCell>
+                                            <TableCell>{getStatusText(transaction.status)}</TableCell>
+                                            <TableCell className="font-mono text-xs">{transaction.blockId}</TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>
@@ -105,6 +213,25 @@ export default function Transactions() {
                                 No hay transacciones disponibles.
                             </div>
                         )}
+                        <div className="flex justify-between items-center mt-4">
+                            <div>
+                                Mostrando {paginatedTransactions.length} de {filteredTransactions.length} transacciones
+                            </div>
+                            <div className="flex space-x-2">
+                                <Button
+                                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                    disabled={currentPage === 1}
+                                >
+                                    Anterior
+                                </Button>
+                                <Button
+                                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                    disabled={currentPage === totalPages}
+                                >
+                                    Siguiente
+                                </Button>
+                            </div>
+                        </div>
                     </CardContent>
                 </Card>
             </ToastProvider>
