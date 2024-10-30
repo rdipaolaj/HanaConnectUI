@@ -1,10 +1,6 @@
-import getConfig from 'next/config'
-
-const { publicRuntimeConfig } = getConfig()
-
-export const TRANSACTION_API_URL = publicRuntimeConfig.transactionApiUrl
-export const AUTH_API_URL = publicRuntimeConfig.authApiUrl
-export const USER_API_URL = publicRuntimeConfig.userApiUrl
+export const TRANSACTION_API_URL = process.env.NEXT_PUBLIC_TRANSACTION_API_URL;
+export const AUTH_API_URL = process.env.NEXT_PUBLIC_AUTH_API_URL;
+export const USER_API_URL = process.env.NEXT_PUBLIC_USER_API_URL;
 
 export const getTransactionUrl = (userId: string, rolId: string) =>
     `${TRANSACTION_API_URL}/ssptbpetdlt/transaction/api/v1/Transaction/${userId}/${rolId}`
