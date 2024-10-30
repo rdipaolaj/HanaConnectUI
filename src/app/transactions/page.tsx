@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { ChevronDown, ChevronUp, ChevronsUpDown } from 'lucide-react'
+import { getTransactionUrl } from '@/utils/api'
 
 interface Transaction {
     id: string
@@ -65,8 +66,7 @@ export default function Transactions() {
                 throw new Error('User information not found')
             }
 
-            const response = await axios.get(
-                `http://localhost:5188/ssptbpetdlt/transaction/api/v1/Transaction/${userId}/${rolId}`,
+            const response = await axios.get(getTransactionUrl(userId, rolId),
                 {
                     headers: {
                         'Authorization': `Bearer ${jwtToken}`

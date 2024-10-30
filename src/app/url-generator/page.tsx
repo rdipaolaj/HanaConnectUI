@@ -10,6 +10,7 @@ import { Icons } from "@/components/icons"
 import AdminLayout from '@/components/layout/AdminLayout'
 import { ToastProvider } from "@/components/ui/toast"
 import { useToast } from "@/components/ui/use-toast"
+import { getNodeInfoUrl } from '@/utils/api'
 
 interface User {
   id: string;
@@ -36,7 +37,7 @@ const mockUsers: User[] = [
 
 async function checkServiceHealth() {
   try {
-    const response = await fetch('http://localhost:5188/ssptbpetdlt/transaction/api/v1/Transaction/node-info');
+    const response = await fetch(getNodeInfoUrl());
     const data = await response.json();
     return {
       isHealthy: data.success && data.data.isHealthy,

@@ -20,6 +20,7 @@ import {
 import { useCustomRouter } from '@/utils/navigation'
 import PasswordStrengthMeter from '@/components/PasswordStrengthMeter'
 import WeakPasswordWarningModal from '@/components/WeakPasswordWarningModal'
+import { getUserCreateUrl } from '@/utils/api'
 
 interface ServerResponse {
     success: boolean;
@@ -89,7 +90,7 @@ export default function RegisterPage() {
         }
 
         try {
-            const response = await axios.post<ServerResponse>('http://localhost:5091/ssptbpetdlt/user/api/v1/User/create', createUserCommand)
+            const response = await axios.post<ServerResponse>(getUserCreateUrl(), createUserCommand)
 
             const { data } = response
 
