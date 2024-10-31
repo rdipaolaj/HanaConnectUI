@@ -27,6 +27,7 @@ interface Transaction {
     status: number
     blockId: string
     transactionData: string
+    storageUrl: string
 }
 
 export default function Transactions() {
@@ -49,7 +50,7 @@ export default function Transactions() {
         const filtered = transactions.filter(transaction =>
             transaction.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
             transaction.blockId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            parseTransactionData(transaction.transactionData).toLowerCase().includes(searchTerm.toLowerCase())
+            (transaction.storageUrl && transaction.storageUrl.toLowerCase().includes(searchTerm.toLowerCase()))
         )
         setFilteredTransactions(filtered)
         setTotalPages(Math.ceil(filtered.length / pageSize))
@@ -95,16 +96,6 @@ export default function Transactions() {
         }
     }
 
-    const parseTransactionData = (data: string) => {
-        try {
-            const parsed = JSON.parse(data)
-            return `${parsed.amount} ${parsed.currency}`
-        } catch (error) {
-            console.error('Error parsing transaction data:', error)
-            return 'N/A'
-        }
-    }
-
     const getStatusText = (status: number) => {
         switch (status) {
             case 0: return 'Pendiente'
@@ -137,6 +128,12 @@ export default function Transactions() {
     const SortIcon = ({ column }: { column: keyof Transaction }) => {
         if (column !== sortColumn) return <ChevronsUpDown className="ml-2 h-4 w-4" />
         return sortDirection === 'asc' ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />
+    }
+
+    const getFileNameFromUrl = (url: string) => {
+        if (!url) return ''
+        const parts = url.split('/')
+        return parts[parts.length - 1]
     }
 
     if (loading) {
@@ -182,8 +179,8 @@ export default function Transactions() {
                                         <TableHead className="cursor-pointer" onClick={() => handleSort('id')}>
                                             ID <SortIcon column="id" />
                                         </TableHead>
-                                        <TableHead className="cursor-pointer" onClick={() => handleSort('transactionData')}>
-                                            Monto <SortIcon column="transactionData" />
+                                        <TableHead className="cursor-pointer" onClick={() => handleSort('storageUrl')}>
+                                            Archivo <SortIcon column="storageUrl" />
                                         </TableHead>
                                         <TableHead className="cursor-pointer" onClick={() => handleSort('transactionDate')}>
                                             Fecha <SortIcon column="transactionDate" />
@@ -200,7 +197,21 @@ export default function Transactions() {
                                     {paginatedTransactions.map((transaction) => (
                                         <TableRow key={transaction.id}>
                                             <TableCell>{transaction.id}</TableCell>
-                                            <TableCell>{parseTransactionData(transaction.transactionData)}</TableCell>
+                                            <TableCell>
+                                                {transaction.storageUrl ? (
+                                                    <a 
+                                                        href={transaction.storageUrl} 
+                                                        target="_blank" 
+                                                        rel="noopener noreferrer" 
+                                                        className="text-blue-600 hover:underline flex items-center"
+                                                    >
+                                                        <Icons.download className="mr-2 h-4 w-4" />
+                                                        {getFileNameFromUrl(transaction.storageUrl)}
+                                                    </a>
+                                                ) : (
+                                                    <span className="text-gray-500">No disponible</span>
+                                                )}
+                                            </TableCell>
                                             <TableCell>{new Date(transaction.transactionDate).toLocaleString()}</TableCell>
                                             <TableCell>{getStatusText(transaction.status)}</TableCell>
                                             <TableCell className="font-mono text-xs">{transaction.blockId}</TableCell>

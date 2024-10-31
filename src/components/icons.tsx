@@ -16,7 +16,8 @@ import {
   TestTube,
   Link,
   Loader,
-  Copy
+  Copy,
+  Download,
 } from "lucide-react"
 
 export const Icons = {
@@ -38,6 +39,7 @@ export const Icons = {
   link: Link,
   loader: Loader,
   copy: Copy,
+  download: Download,
 }
 
 export type Icon = keyof typeof Icons
