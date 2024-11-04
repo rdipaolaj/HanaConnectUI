@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { Button } from "@/components/ui/button"
@@ -11,7 +11,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface Permission {
@@ -20,17 +20,19 @@ interface Permission {
     description: string;
 }
 
-// Función para generar una URL única por usuario
-const generateUniqueUrl = (userId: string) => {
-    return `https://api.hanaconnect.com/user/${userId}`
-}
+// URL única actualizada
+const UNIQUE_URL = "https://ssptb-pe-tdlt-transaction-service.fly.dev/ssptbpetdlt/transaction/api/v1/Transaction/create"
 
-// Función para generar un color aleatorio para el avatar
-const getRandomColor = () => {
-    const letters = '0123456789ABCDEF';
+// Función para generar un color basado en el nombre de usuario
+const getColorFromUsername = (username: string) => {
+    let hash = 0;
+    for (let i = 0; i < username.length; i++) {
+        hash = username.charCodeAt(i) + ((hash << 5) - hash);
+    }
     let color = '#';
-    for (let i = 0; i < 6; i++) {
-        color += letters[Math.floor(Math.random() * 16)];
+    for (let i = 0; i < 3; i++) {
+        const value = (hash >> (i * 8)) & 0xFF;
+        color += ('00' + value.toString(16)).substr(-2);
     }
     return color;
 }
@@ -42,9 +44,30 @@ const Logo = ({ isCollapsed }: { isCollapsed: boolean }) => (
     </Link>
 )
 
-const Sidebar = ({ isCollapsed, toggleSidebar, userUrl, permissions, username }: { isCollapsed: boolean; toggleSidebar: () => void; userUrl: string; permissions: Permission[]; username: string }) => {
+const NavItem = ({ href, icon, label, permissionName, isCollapsed, pathname, permissions }: { href: string; icon: React.ReactNode; label: string; permissionName: string; isCollapsed: boolean; pathname: string; permissions: Permission[] }) => {
+    const hasPermission = permissions.some(p => p.permissionName === permissionName)
+
+    if (!hasPermission) return null
+
+    return (
+        <Link
+            href={href}
+            className={`flex items-center py-2 px-4 hover:bg-gray-800 rounded ${isCollapsed ? 'justify-center' : ''
+                } ${pathname === href ? 'bg-gray-800' : ''}`}
+            title={isCollapsed ? label : ''}
+        >
+            <div className="flex items-center justify-center w-5 h-5">
+                {icon}
+            </div>
+            {!isCollapsed && <span className="ml-3">{label}</span>}
+        </Link>
+    )
+}
+
+const UserMenu = ({ username }: { username: string }) => {
     const router = useRouter()
-    const pathname = usePathname()
+    const initials = username.split(' ').map(n => n[0]).join('').toUpperCase()
+    const avatarColor = useMemo(() => getColorFromUsername(username), [username])
 
     const handleLogout = () => {
         localStorage.removeItem('username')
@@ -54,58 +77,36 @@ const Sidebar = ({ isCollapsed, toggleSidebar, userUrl, permissions, username }:
         router.push('/login')
     }
 
-    const NavItem = ({ href, icon, label, permissionName }: { href: string; icon: React.ReactNode; label: string; permissionName: string }) => {
-        const hasPermission = permissions.some(p => p.permissionName === permissionName)
+    return (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                    <Avatar className="h-8 w-8">
+                        <AvatarFallback style={{backgroundColor: avatarColor}}>{initials}</AvatarFallback>
+                    </Avatar>
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56" align="end" forceMount>
+                <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none">{username}</p>
+                        <p className="text-xs leading-none text-muted-foreground">
+                            {UNIQUE_URL}
+                        </p>
+                    </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout}>
+                    <Icons.logOut className="mr-2 h-4 w-4" />
+                    <span>Cerrar sesión</span>
+                </DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
+    )
+}
 
-        if (!hasPermission) return null
-
-        return (
-            <Link
-                href={href}
-                className={`flex items-center py-2 px-4 hover:bg-gray-800 rounded ${isCollapsed ? 'justify-center' : ''
-                    } ${pathname === href ? 'bg-gray-800' : ''}`}
-                title={isCollapsed ? label : ''}
-            >
-                <div className="flex items-center justify-center w-5 h-5">
-                    {icon}
-                </div>
-                {!isCollapsed && <span className="ml-3">{label}</span>}
-            </Link>
-        )
-    }
-
-    const UserMenu = () => {
-        const initials = username.split(' ').map(n => n[0]).join('').toUpperCase()
-        const avatarColor = getRandomColor()
-
-        return (
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                        <Avatar className="h-8 w-8">
-                            <AvatarImage src="/avatars/01.png" alt={username} />
-                            <AvatarFallback style={{backgroundColor: avatarColor}}>{initials}</AvatarFallback>
-                        </Avatar>
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end" forceMount>
-                    <DropdownMenuLabel className="font-normal">
-                        <div className="flex flex-col space-y-1">
-                            <p className="text-sm font-medium leading-none">{username}</p>
-                            <p className="text-xs leading-none text-muted-foreground">
-                                {userUrl}
-                            </p>
-                        </div>
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleLogout}>
-                        <Icons.logOut className="mr-2 h-4 w-4" />
-                        <span>Cerrar sesión</span>
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
-        )
-    }
+const Sidebar = ({ isCollapsed, toggleSidebar, permissions, username }: { isCollapsed: boolean; toggleSidebar: () => void; permissions: Permission[]; username: string }) => {
+    const pathname = usePathname()
 
     return (
         <div className={`flex flex-col h-full bg-gray-900 text-white ${isCollapsed ? 'w-16' : 'w-64'} transition-all duration-300`}>
@@ -118,30 +119,30 @@ const Sidebar = ({ isCollapsed, toggleSidebar, userUrl, permissions, username }:
             <nav className="flex-1">
                 <ul className="space-y-2 p-4">
                     <li>
-                        <NavItem href="/dashboard" icon={<Icons.home className="h-5 w-5" />} label="Dashboard" permissionName="Access Dashboard" />
+                        <NavItem href="/dashboard" icon={<Icons.home className="h-5 w-5" />} label="Dashboard" permissionName="Access Dashboard" isCollapsed={isCollapsed} pathname={pathname} permissions={permissions} />
                     </li>
                     <li>
-                        <NavItem href="/transactions" icon={<Icons.creditCard className="h-5 w-5" />} label="Transacciones" permissionName="Access Transactions" />
+                        <NavItem href="/transactions" icon={<Icons.creditCard className="h-5 w-5" />} label="Transacciones" permissionName="Access Transactions" isCollapsed={isCollapsed} pathname={pathname} permissions={permissions} />
                     </li>
                     <li>
-                        <NavItem href="/security" icon={<Icons.shield className="h-5 w-5" />} label="Seguridad" permissionName="Access Security" />
+                        <NavItem href="/security" icon={<Icons.shield className="h-5 w-5" />} label="Seguridad" permissionName="Access Security" isCollapsed={isCollapsed} pathname={pathname} permissions={permissions} />
                     </li>
                     <li>
-                        <NavItem href="/users" icon={<Icons.users className="h-5 w-5" />} label="Usuarios" permissionName="Access Users" />
+                        <NavItem href="/users" icon={<Icons.users className="h-5 w-5" />} label="Usuarios" permissionName="Access Users" isCollapsed={isCollapsed} pathname={pathname} permissions={permissions} />
                     </li>
                     <li>
-                        <NavItem href="/profile" icon={<Icons.user className="h-5 w-5" />} label="Perfil" permissionName="Access Profile" />
+                        <NavItem href="/profile" icon={<Icons.user className="h-5 w-5" />} label="Perfil" permissionName="Access Profile" isCollapsed={isCollapsed} pathname={pathname} permissions={permissions} />
                     </li>
                     <li>
-                        <NavItem href="/tests" icon={<Icons.testTube className="h-5 w-5" />} label="Pruebas" permissionName="Access Tests" />
+                        <NavItem href="/tests" icon={<Icons.testTube className="h-5 w-5" />} label="Pruebas" permissionName="Access Tests" isCollapsed={isCollapsed} pathname={pathname} permissions={permissions} />
                     </li>
                     <li>
-                        <NavItem href="/url-generator" icon={<Icons.link className="h-5 w-5" />} label="Generador URL" permissionName="Access URL Generator" />
+                        <NavItem href="/documentation" icon={<Icons.fileText className="h-5 w-5" />} label="Documentación" permissionName="Access URL Generator" isCollapsed={isCollapsed} pathname={pathname} permissions={permissions} />
                     </li>
                 </ul>
             </nav>
             <div className="p-4">
-                <UserMenu />
+                <UserMenu username={username} />
             </div>
         </div>
     )
@@ -149,7 +150,6 @@ const Sidebar = ({ isCollapsed, toggleSidebar, userUrl, permissions, username }:
 
 const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [isCollapsed, setIsCollapsed] = useState(false)
-    const [userUrl, setUserUrl] = useState('')
     const [permissions, setPermissions] = useState<Permission[]>([])
     const [username, setUsername] = useState('')
     const router = useRouter()
@@ -180,10 +180,6 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         }
 
         setUsername(storedUsername)
-
-        // Generar o recuperar la URL única del usuario
-        const generatedUrl = generateUniqueUrl(storedUsername)
-        setUserUrl(generatedUrl)
     }, [router])
 
     const toggleSidebar = () => {
@@ -206,7 +202,6 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 <Sidebar 
                     isCollapsed={isCollapsed} 
                     toggleSidebar={toggleSidebar} 
-                    userUrl={userUrl} 
                     permissions={permissions}
                     username={username}
                 />
@@ -220,14 +215,11 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                                 <TooltipTrigger asChild>
                                     <div className="flex items-center space-x-2">
                                         <span className="text-sm font-medium">Bienvenido, {username}</span>
-                                        <Avatar className="h-8 w-8">
-                                            <AvatarImage src="/avatars/01.png" alt={username} />
-                                            <AvatarFallback>{username.split(' ').map(n => n[0]).join('').toUpperCase()}</AvatarFallback>
-                                        </Avatar>
+                                        <UserMenu username={username} />
                                     </div>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                    <p>URL única: {userUrl}</p>
+                                    <p>URL única: {UNIQUE_URL}</p>
                                 </TooltipContent>
                             </Tooltip>
                         </div>

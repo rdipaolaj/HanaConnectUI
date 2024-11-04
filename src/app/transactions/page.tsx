@@ -99,8 +99,9 @@ export default function Transactions() {
     const getStatusText = (status: number) => {
         switch (status) {
             case 0: return 'Pendiente'
-            case 1: return 'Completada'
-            case 2: return 'Fallida'
+            case 1: return 'Completado'
+            case 2: return 'Confirmado'
+            case 3: return 'Fallido'
             default: return 'Desconocido'
         }
     }
