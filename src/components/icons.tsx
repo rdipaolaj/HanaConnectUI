@@ -18,6 +18,11 @@ import {
   Loader,
   Copy,
   Download,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  Bell,
+  FileText,
 } from "lucide-react"
 
 export const Icons = {
@@ -40,6 +45,11 @@ export const Icons = {
   loader: Loader,
   copy: Copy,
   download: Download,
+  alertTriangle: AlertTriangle,
+  checkCircle: CheckCircle,
+  clock: Clock,
+  bell: Bell,
+  fileText: FileText,
 }
 
 export type Icon = keyof typeof Icons

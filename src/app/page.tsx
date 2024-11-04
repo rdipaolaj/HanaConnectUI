@@ -3,194 +3,163 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import axios from 'axios'
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ToastProvider } from "@/components/ui/toast"
 import { useToast } from "@/components/ui/use-toast"
 import { Icons } from "@/components/icons"
 import AdminLayout from '@/components/layout/AdminLayout'
+import { BarChart4, CheckCircle, XCircle, CalendarDays } from 'lucide-react'
+import { getTotalTransactionsUrl, getSuccessErrorRatioUrl, getMonthlyComparisonUrl } from '@/utils/api'
 
-export default function Dashboard() {
+interface HomeStats {
+    totalTransactions: number
+    totalTransactionsPercentage: number
+    successCount: number
+    errorCount: number
+    successPercentage: number
+    currentMonthTransactions: number
+    monthlyPercentageChange: number
+}
+
+export default function Home() {
   const [loading, setLoading] = useState(true)
-  const [username, setUsername] = useState('')
-  const [apiUrl, setApiUrl] = useState('')
-  const [transactionStats, setTransactionStats] = useState({ total: 0, secure: 0 })
-  const [securityMetrics, setSecurityMetrics] = useState({ fraudAttempts: 0, successRate: 0 })
+  const [stats, setStats] = useState<HomeStats | null>(null)
   const router = useRouter()
   const { toast } = useToast()
 
   useEffect(() => {
-    const storedUsername = localStorage.getItem('username')
-    const jwtToken = localStorage.getItem('jwtToken')
+      const userId = localStorage.getItem('userId')
+      const rolId = localStorage.getItem('rolId')
+      const jwtToken = localStorage.getItem('jwtToken')
 
-    if (!storedUsername || !jwtToken) {
-      router.push('/login')
-    } else {
-      setUsername(storedUsername)
-      setApiUrl(`https://api.bancoseguro.pe/users/${storedUsername}`)
-      fetchDashboardData()
-    }
+      if (!userId || !rolId || !jwtToken) {
+          router.push('/login')
+      } else {
+          fetchHomeStats(userId, rolId, jwtToken)
+      }
   }, [router])
 
-  const fetchDashboardData = async () => {
-    try {
-      // Simulated API calls
-      const transactionResponse = await axios.get(`${apiUrl}/transactions/stats`)
-      const securityResponse = await axios.get(`${apiUrl}/security/metrics`)
+  const fetchHomeStats = async (userId: string, rolId: string, jwtToken: string) => {
+      try {
+          const [totalTransactions, successErrorRatio, monthlyComparison] = await Promise.all([
+              axios.get(getTotalTransactionsUrl(userId, rolId), {
+                  headers: { 'Authorization': `Bearer ${jwtToken}` }
+              }),
+              axios.get(getSuccessErrorRatioUrl(userId, rolId), {
+                  headers: { 'Authorization': `Bearer ${jwtToken}` }
+              }),
+              axios.get(getMonthlyComparisonUrl(userId, rolId), {
+                  headers: { 'Authorization': `Bearer ${jwtToken}` }
+              })
+          ])
 
-      setTransactionStats(transactionResponse.data)
-      setSecurityMetrics(securityResponse.data)
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error)
-      toast({
-        title: "Error",
-        description: "No se pudo cargar los datos del dashboard.",
-        variant: "destructive",
-      })
-    } finally {
-      setLoading(false)
-    }
+          setStats({
+              totalTransactions: totalTransactions.data.data.total,
+              totalTransactionsPercentage: totalTransactions.data.data.percentage,
+              successCount: successErrorRatio.data.data.successCount,
+              errorCount: successErrorRatio.data.data.errorCount,
+              successPercentage: successErrorRatio.data.data.successPercentage,
+              currentMonthTransactions: monthlyComparison.data.data.currentMonthTransactionCount,
+              monthlyPercentageChange: monthlyComparison.data.data.percentageChange
+          })
+      } catch (error) {
+          console.error('Error al obtener las estadísticas del home:', error)
+          toast({
+              title: "Error",
+              description: "No se pudieron cargar las estadísticas del home.",
+              variant: "destructive",
+          })
+      } finally {
+          setLoading(false)
+      }
   }
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen">
-      <Icons.spinner className="h-8 w-8 animate-spin" />
-    </div>
+      return <div className="flex items-center justify-center h-screen">
+          <Icons.spinner className="h-8 w-8 animate-spin" />
+      </div>
   }
 
   return (
-    <AdminLayout>
-      <ToastProvider>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total Transacciones
-              </CardTitle>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                className="h-4 w-4 text-muted-foreground"
-              >
-                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{transactionStats.total}</div>
-              <p className="text-xs text-muted-foreground">
-                +20.1% desde el último mes
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Transacciones Seguras
-              </CardTitle>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                className="h-4 w-4 text-muted-foreground"
-              >
-                <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-              </svg>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{transactionStats.secure}</div>
-              <p className="text-xs text-muted-foreground">
-                +180.1% desde el último mes
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Intentos de Fraude</CardTitle>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                className="h-4 w-4 text-muted-foreground"
-              >
-                <rect width="20" height="14" x="2" y="5" rx="2" />
-                <path d="M2 10h20" />
-              </svg>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{securityMetrics.fraudAttempts}</div>
-              <p className="text-xs text-muted-foreground">
-                -19% desde el último mes
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Tasa de Éxito de Seguridad
-              </CardTitle>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                className="h-4 w-4 text-muted-foreground"
-              >
-                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-              </svg>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{securityMetrics.successRate}%</div>
-              <p className="text-xs text-muted-foreground">
-                +201 puntos base desde el último mes
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-        <div className="mt-8">
-          <Card>
-            <CardHeader>
-              <CardTitle>Resumen del Sistema DLT</CardTitle>
-              <CardDescription>
-                Información general sobre la implementación de DLT en nuestro sistema bancario
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p>
-                Nuestro sistema de seguridad basado en Tecnologías de Ledger Distribuido (DLT) 
-                ha demostrado una mejora significativa en la protección contra fraudes y ataques 
-                cibernéticos. La arquitectura descentralizada garantiza la integridad y 
-                transparencia de todas las transacciones bancarias.
-              </p>
-              <ul className="list-disc pl-5 mt-4 space-y-2">
-                <li>Transacciones verificadas por múltiples nodos en la red DLT</li>
-                <li>Registros inmutables que previenen la manipulación de datos</li>
-                <li>Encriptación de extremo a extremo para todas las transacciones</li>
-                <li>Auditoría en tiempo real de todas las actividades del sistema</li>
-              </ul>
-            </CardContent>
-          </Card>
-        </div>
-      </ToastProvider>
-    </AdminLayout>
+      <AdminLayout>
+          <ToastProvider>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                  <Card>
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                          <CardTitle className="text-sm font-medium">Total Transacciones</CardTitle>
+                          <BarChart4 className="h-4 w-4 text-muted-foreground" />
+                      </CardHeader>
+                      <CardContent>
+                          <div className="text-2xl font-bold">{stats?.totalTransactions ?? 0}</div>
+                          <p className="text-xs text-muted-foreground">
+                              {stats?.totalTransactionsPercentage && stats.totalTransactionsPercentage > 0 ? '+' : ''}
+                              {stats?.totalTransactionsPercentage?.toFixed(2) ?? '0.00'}% desde el último mes
+                          </p>
+                      </CardContent>
+                  </Card>
+                  <Card>
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                          <CardTitle className="text-sm font-medium">Transacciones Exitosas</CardTitle>
+                          <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                      </CardHeader>
+                      <CardContent>
+                          <div className="text-2xl font-bold">{stats?.successCount ?? 0}</div>
+                          <p className="text-xs text-muted-foreground">
+                              {stats?.successPercentage?.toFixed(2) ?? '0.00'}% del total
+                          </p>
+                      </CardContent>
+                  </Card>
+                  <Card>
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                          <CardTitle className="text-sm font-medium">Transacciones Fallidas</CardTitle>
+                          <XCircle className="h-4 w-4 text-muted-foreground" />
+                      </CardHeader>
+                      <CardContent>
+                          <div className="text-2xl font-bold">{stats?.errorCount ?? 0}</div>
+                          <p className="text-xs text-muted-foreground">
+                              {((100 - (stats?.successPercentage ?? 0))).toFixed(2)}% del total
+                          </p>
+                      </CardContent>
+                  </Card>
+                  <Card>
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                          <CardTitle className="text-sm font-medium">Transacciones Este Mes</CardTitle>
+                          <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                      </CardHeader>
+                      <CardContent>
+                          <div className="text-2xl font-bold">{stats?.currentMonthTransactions ?? 0}</div>
+                          <p className="text-xs text-muted-foreground">
+                              {stats?.monthlyPercentageChange && stats.monthlyPercentageChange > 0 ? '+' : ''}
+                              {stats?.monthlyPercentageChange?.toFixed(2) ?? '0.00'}% desde el mes pasado
+                          </p>
+                      </CardContent>
+                  </Card>
+              </div>
+              <div className="mt-8">
+                  <Card>
+                      <CardHeader>
+                          <CardTitle>Resumen del Sistema DLT</CardTitle>
+                          <CardDescription>
+                              Información general sobre la implementación de DLT en nuestro sistema bancario
+                          </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                          <p>
+                              Nuestro sistema de seguridad basado en Tecnologías de Ledger Distribuido (DLT) 
+                              ha demostrado una mejora significativa en la protección contra fraudes y ataques 
+                              cibernéticos. La arquitectura descentralizada garantiza la integridad y 
+                              transparencia de todas las transacciones bancarias.
+                          </p>
+                          <ul className="list-disc pl-5 mt-4 space-y-2">
+                              <li>Transacciones verificadas por múltiples nodos en la red DLT</li>
+                              <li>Registros inmutables que previenen la manipulación de datos</li>
+                              <li>Encriptación de extremo a extremo para todas las transacciones</li>
+                              <li>Auditoría en tiempo real de todas las actividades del sistema</li>
+                          </ul>
+                      </CardContent>
+                  </Card>
+              </div>
+          </ToastProvider>
+      </AdminLayout>
   )
 }
