@@ -38,3 +38,6 @@ export const getTransactionTrendUrl = (userId: string, rolId: string) =>
 
 export const getUsersUrl = () =>
     `${USER_API_URL}/ssptbpetdlt/user/api/v1/User/GetUsers`
+
+export const getSecurityAuditUrl = () =>
+    `${TRANSACTION_API_URL}/ssptbpetdlt/transaction/api/v1/Audit/full-audit`
