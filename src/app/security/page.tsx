@@ -8,7 +8,7 @@ import { ToastProvider, ToastViewport, Toast } from "@/components/ui/toast"
 import { useToast } from "@/components/ui/use-toast"
 import { Icons } from "@/components/icons"
 import AdminLayout from '@/components/layout/AdminLayout'
-import { getTransactionsPerHourUrl, getTransactionTrendUrl } from '@/utils/api'
+import { getTransactionsPerHourUrl, getTransactionTrendUrl, getSecurityAuditUrl } from '@/utils/api'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
 // Custom Toaster component
@@ -59,6 +59,7 @@ export default function Security() {
   const [loading, setLoading] = useState(true)
   const [hourlyData, setHourlyData] = useState<HourlyTransaction[]>([])
   const [trendData, setTrendData] = useState<TrendData[]>([])
+  const [auditLoading, setAuditLoading] = useState(false)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -114,7 +115,7 @@ export default function Security() {
       if (anomalies.length > 0) {
         toast({
           title: "Alerta de Seguridad",
-          description: `Se detectaron ${anomalies.length} anomalías en las transacciones recientes.`,
+          description: `Se detectaron ${anomalies.length} anomalía${anomalies.length > 1 ? 's' : ''} en las transacciones recientes.`,
           variant: "destructive",
         })
       }
@@ -133,20 +134,32 @@ export default function Security() {
   const detectAnomalies = (hourlyData: HourlyTransaction[], trendData: TrendData[]): string[] => {
     const anomalies: string[] = []
 
-    console.log("Hourly Data:", hourlyData);
-    console.log("Trend Data:", trendData);
+    console.log("Hourly Data:", hourlyData)
+    console.log("Trend Data:", trendData)
 
-    const avgTransactions = hourlyData.reduce((sum, hour) => sum + hour.transactionCount, 0) / hourlyData.length
-    hourlyData.forEach(hour => {
-      if (hour.transactionCount > avgTransactions * 2) {
-        anomalies.push(`Pico inusual de transacciones a las ${hour.hour}`)
+    if (hourlyData.length > 0) {
+      const nonZeroTransactions = hourlyData.filter(hour => hour.transactionCount > 0)
+      if (nonZeroTransactions.length > 0) {
+        const avgTransactions = nonZeroTransactions.reduce((sum, hour) => sum + hour.transactionCount, 0) / nonZeroTransactions.length
+        const threshold = avgTransactions * 2
+        hourlyData.forEach(hour => {
+          if (hour.transactionCount > threshold && hour.transactionCount > 10) {
+            anomalies.push(`Pico inusual de transacciones a las ${hour.hour}:00 (${hour.transactionCount} transacciones)`)
+          }
+        })
       }
-    })
+    }
 
-    for (let i = 1; i < trendData.length; i++) {
-      const change = (trendData[i].value - trendData[i - 1].value) / trendData[i - 1].value
-      if (Math.abs(change) > 0.5) {
-        anomalies.push(`Cambio brusco en la tendencia de transacciones el ${trendData[i].key}`)
+    if (trendData.length > 1) {
+      for (let i = 1; i < trendData.length; i++) {
+        const prevValue = trendData[i - 1].value
+        const currentValue = trendData[i].value
+        if (prevValue > 0) {
+          const change = (currentValue - prevValue) / prevValue
+          if (Math.abs(change) > 0.5 && Math.abs(currentValue - prevValue) > 10) {
+            anomalies.push(`Cambio brusco en la tendencia de transacciones el ${trendData[i].key} (${(change * 100).toFixed(2)}%)`)
+          }
+        }
       }
     }
 
@@ -155,26 +168,58 @@ export default function Security() {
 
   const runSecurityAudit = async () => {
     try {
-      setLoading(true)
-      toast({
-        title: "Auditoría de Seguridad",
-        description: "La auditoría de seguridad se ha iniciado correctamente.",
-      })
+      setAuditLoading(true)
       const userId = localStorage.getItem('userId')
       const rolId = localStorage.getItem('rolId')
       const jwtToken = localStorage.getItem('jwtToken')
+      
       if (userId && rolId && jwtToken) {
-        await fetchSecurityData(userId, rolId, jwtToken)
+        const auditUrl = getSecurityAuditUrl()
+        const response = await axios.post<ApiResponse<{ excelFileData: string }>>(
+          auditUrl,
+          null,
+          {
+            headers: { 'Authorization': `Bearer ${jwtToken}` },
+            params: { userId, roleId: rolId },
+            responseType: 'json'
+          }
+        )
+
+        if (response.data.success && response.data.data.excelFileData) {
+          // Convertir la cadena base64 a un Blob
+          const byteCharacters = atob(response.data.data.excelFileData)
+          const byteNumbers = new Array(byteCharacters.length)
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i)
+          }
+          const byteArray = new Uint8Array(byteNumbers)
+          const blob = new Blob([byteArray], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+
+          // Crear un enlace de descarga y hacer clic en él
+          const link = document.createElement('a')
+          link.href = window.URL.createObjectURL(blob)
+          link.download = 'auditoria_seguridad.xlsx'
+          document.body.appendChild(link)
+          link.click()
+          document.body.removeChild(link)
+
+          toast({
+            title: "Auditoría de Seguridad",
+            description: "La auditoría de seguridad se ha completado y descargado correctamente.",
+          })
+        } else {
+          throw new Error("No se pudo generar el archivo de auditoría")
+        }
       }
     } catch (error) {
       console.error('Error running security audit:', error)
       toast({
         title: "Error",
-        description: "No se pudo iniciar la auditoría de seguridad.",
+        description: "No se pudo completar la auditoría de seguridad.",
         variant: "destructive",
       })
     } finally {
-      setLoading(false)
+      setAuditLoading(false)
     }
   }
 
@@ -293,13 +338,13 @@ export default function Security() {
           <CardHeader>
             <CardTitle>Auditoría de Seguridad DLT</CardTitle>
             <CardDescription>
-              Ejecute una auditoría completa del sistema de seguridad DLT
+              Ejecute una auditoría completa del sistema de seguridad DLT y descargue el informe
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={runSecurityAudit} disabled={loading}>
-              {loading ? <Icons.spinner className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Iniciar Auditoría de Seguridad
+            <Button onClick={runSecurityAudit} disabled={auditLoading}>
+              {auditLoading ? <Icons.spinner className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {auditLoading ? "Generando auditoría..." : "Iniciar Auditoría de Seguridad"}
             </Button>
           </CardContent>
         </Card>
