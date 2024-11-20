@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState, useEffect, useCallback } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ToastProvider } from "@/components/ui/toast"
 import { useToast } from "@/components/ui/use-toast"
 import { Icons } from "@/components/icons"
@@ -25,11 +25,7 @@ export default function Dashboard() {
     const [stats, setStats] = useState<DashboardStats | null>(null)
     const { toast } = useToast()
 
-    useEffect(() => {
-        fetchDashboardStats()
-    }, [])
-
-    const fetchDashboardStats = async () => {
+    const fetchDashboardStats = useCallback(async () => {
         try {
             const userId = localStorage.getItem('userId')
             const rolId = localStorage.getItem('rolId')
@@ -70,7 +66,11 @@ export default function Dashboard() {
         } finally {
             setLoading(false)
         }
-    }
+    }, [toast])
+
+    useEffect(() => {
+        fetchDashboardStats()
+    }, [fetchDashboardStats])
 
     if (loading) {
         return <div className="flex items-center justify-center h-screen">

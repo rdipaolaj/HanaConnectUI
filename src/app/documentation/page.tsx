@@ -7,6 +7,8 @@ import { Icons } from "@/components/icons"
 import AdminLayout from '@/components/layout/AdminLayout'
 import { ToastProvider } from "@/components/ui/toast"
 import { getNodeInfoUrl } from '@/utils/api'
+import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 
 async function checkServiceHealth() {
   try {
@@ -26,6 +28,7 @@ async function checkServiceHealth() {
 const TransactionDocumentationPage = () => {
   const [serviceHealth, setServiceHealth] = useState<{ isHealthy: boolean, version: string, networkName: string } | null>(null)
   const [userId, setUserId] = useState<string>('')
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
 
   useEffect(() => {
     const fetchServiceHealth = async () => {
@@ -41,13 +44,24 @@ const TransactionDocumentationPage = () => {
     }
   }, []);
 
+  const tangleUrl = 'http://3.92.78.140:8011/dashboard/';
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(tangleUrl).then(() => {
+      alert('URL copiada al portapapeles');
+    }, (err) => {
+      console.error('Error al copiar: ', err);
+    });
+  }
+
   return (
     <AdminLayout>
       <ToastProvider>
         <Tabs defaultValue="documentation" className="w-full">
-          <TabsList className="bg-gray-800">
+          <TabsList className="bg-gray-800 ">
             <TabsTrigger value="documentation" className="data-[state=active]:bg-gray-700">Documentación API</TabsTrigger>
             <TabsTrigger value="health" className="data-[state=active]:bg-gray-700">Estado del Servicio</TabsTrigger>
+            <TabsTrigger value="tangle" className="data-[state=active]:bg-gray-700">Tangle Dashboard</TabsTrigger>
           </TabsList>
           <TabsContent value="documentation">
             <Card className="bg-gray-800 text-gray-100">
@@ -72,8 +86,8 @@ const TransactionDocumentationPage = () => {
                   <h3 className="text-lg font-semibold mt-4 mb-2 text-gray-200">Cuerpo de la Solicitud</h3>
                   <pre className="bg-gray-700 p-2 rounded text-gray-100 mb-2 whitespace-pre-wrap">
                     {`{
-  "userBankTransactionId": "${userId || '<userId>'}",
-  "tag": "<etiqueta_personalizada_del_banco>",
+  "userBankTransactionId": "${userId || '&lt;userId&gt;'}",
+  "tag": "&lt;etiqueta_personalizada_del_banco&gt;",
   "transactionData": {
     // Objeto con datos específicos de la transacción definidos por el banco
     // Ejemplo:
@@ -95,11 +109,11 @@ const TransactionDocumentationPage = () => {
   "statusCode": 200,
   "message": "Transacción registrada exitosamente.",
   "data": {
-    "transactionId": "<id_de_transaccion_generado>",
-    "blockId": "<id_del_bloque_en_la_cadena>"
+    "transactionId": "&lt;id_de_transaccion_generado&gt;",
+    "blockId": "&lt;id_del_bloque_en_la_cadena&gt;"
   },
-  "transactionId": "<id_de_transaccion_del_sistema>",
-  "timestamp": "<fecha_y_hora_de_la_transaccion>",
+  "transactionId": "&lt;id_de_transaccion_del_sistema&gt;",
+  "timestamp": "&lt;fecha_y_hora_de_la_transaccion&gt;",
   "errors": [],
   "metadata": {}
 }`}
@@ -129,6 +143,47 @@ const TransactionDocumentationPage = () => {
                 ) : (
                   <p>Cargando información del servicio...</p>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="tangle">
+            <Card className="bg-gray-800 text-gray-100">
+              <CardHeader>
+                <CardTitle>Tangle Dashboard</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-300 mb-4">
+                  Para visualizar el dashboard de Tangle en una ventana de incógnito de Google Chrome, siga estos pasos:
+                </p>
+                <ol className="list-decimal list-inside text-gray-300 mb-4 space-y-2">
+                  <li>Copie la URL del dashboard de Tangle haciendo clic en el botón &quot;Copiar URL&quot;.</li>
+                  <li>Abra una nueva ventana de incógnito en Google Chrome (Ctrl+Shift+N en Windows/Linux o Cmd+Shift+N en Mac).</li>
+                  <li>Pegue la URL copiada en la barra de direcciones de la ventana de incógnito y presione Enter.</li>
+                </ol>
+                <div className="flex space-x-4">
+                  <Button
+                    onClick={copyToClipboard}
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+                  >
+                    Copiar URL
+                  </Button>
+                  <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+                        Ver URL
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="bg-gray-800 text-gray-100">
+                      <DialogHeader>
+                        <DialogTitle>URL del Dashboard de Tangle</DialogTitle>
+                      </DialogHeader>
+                      <p className="mt-4 break-all">{tangleUrl}</p>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+                <p className="text-gray-300 mt-4">
+                  <strong>Nota:</strong> Asegúrese de tener Google Chrome instalado en su sistema para seguir estas instrucciones.
+                </p>
               </CardContent>
             </Card>
           </TabsContent>
