@@ -10,7 +10,7 @@ import { Icons } from "@/components/icons"
 import AdminLayout from '@/components/layout/AdminLayout'
 import { BarChart4, CheckCircle, XCircle, CalendarDays } from 'lucide-react'
 import { getTotalTransactionsUrl, getSuccessErrorRatioUrl, getMonthlyComparisonUrl } from '@/utils/api'
-import { DLTSummaryCard } from '@/app/proyecto/page' 
+import { DLTSummaryCard } from '@/components/DLTSummaryCard'
 
 interface HomeStats {
     totalTransactions: number
