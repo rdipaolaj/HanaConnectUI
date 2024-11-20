@@ -10,6 +10,7 @@ import { Icons } from "@/components/icons"
 import AdminLayout from '@/components/layout/AdminLayout'
 import { BarChart4, CheckCircle, XCircle, CalendarDays } from 'lucide-react'
 import { getTotalTransactionsUrl, getSuccessErrorRatioUrl, getMonthlyComparisonUrl } from '@/utils/api'
+import { DLTSummaryCard } from './proyecto/page' 
 
 interface HomeStats {
     totalTransactions: number
@@ -135,30 +136,7 @@ export default function Home() {
                         </CardContent>
                     </Card>
                 </div>
-                <div className="mt-8">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Resumen del Sistema DLT</CardTitle>
-                            <CardDescription>
-                                Información general sobre la implementación de DLT en nuestro sistema bancario
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <p>
-                                Nuestro sistema de seguridad basado en Tecnologías de Ledger Distribuido (DLT)
-                                ha demostrado una mejora significativa en la protección contra fraudes y ataques
-                                cibernéticos. La arquitectura descentralizada garantiza la integridad y
-                                transparencia de todas las transacciones bancarias.
-                            </p>
-                            <ul className="list-disc pl-5 mt-4 space-y-2">
-                                <li>Transacciones verificadas por múltiples nodos en la red DLT</li>
-                                <li>Registros inmutables que previenen la manipulación de datos</li>
-                                <li>Encriptación de extremo a extremo para todas las transacciones</li>
-                                <li>Auditoría en tiempo real de todas las actividades del sistema</li>
-                            </ul>
-                        </CardContent>
-                    </Card>
-                </div>
+                <DLTSummaryCard />
             </ToastProvider>
         </AdminLayout>
     )
