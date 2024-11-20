@@ -7,6 +7,7 @@ import { Icons } from "@/components/icons"
 import AdminLayout from '@/components/layout/AdminLayout'
 import { ToastProvider } from "@/components/ui/toast"
 import { getNodeInfoUrl } from '@/utils/api'
+import { Button } from "@/components/ui/button"
 
 async function checkServiceHealth() {
   try {
@@ -41,13 +42,19 @@ const TransactionDocumentationPage = () => {
     }
   }, []);
 
+  const openTangleInIncognito = () => {
+    const tangleUrl = 'http://3.92.78.140:8011/dashboard/';
+    window.open(tangleUrl, '_blank', 'noopener,noreferrer');
+  };
+
   return (
     <AdminLayout>
       <ToastProvider>
         <Tabs defaultValue="documentation" className="w-full">
-          <TabsList className="bg-gray-800">
+          <TabsList className="bg-gray-800 w-full justify-start">
             <TabsTrigger value="documentation" className="data-[state=active]:bg-gray-700">Documentación API</TabsTrigger>
             <TabsTrigger value="health" className="data-[state=active]:bg-gray-700">Estado del Servicio</TabsTrigger>
+            <TabsTrigger value="tangle" className="data-[state=active]:bg-gray-700">Tangle Dashboard</TabsTrigger>
           </TabsList>
           <TabsContent value="documentation">
             <Card className="bg-gray-800 text-gray-100">
@@ -129,6 +136,27 @@ const TransactionDocumentationPage = () => {
                 ) : (
                   <p>Cargando información del servicio...</p>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="tangle">
+            <Card className="bg-gray-800 text-gray-100">
+              <CardHeader>
+                <CardTitle>Tangle Dashboard</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-300 mb-4">
+                  Para visualizar el dashboard de Tangle, haga clic en el botón a continuación. Esto abrirá una nueva pestaña con el dashboard.
+                </p>
+                <Button 
+                  onClick={openTangleInIncognito}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+                >
+                  Abrir Tangle Dashboard
+                </Button>
+                <p className="text-gray-300 mt-4">
+                  <strong>Nota:</strong> El dashboard se abrirá en una nueva pestaña. Asegúrese de que su navegador no esté bloqueando las ventanas emergentes para este sitio.
+                </p>
               </CardContent>
             </Card>
           </TabsContent>

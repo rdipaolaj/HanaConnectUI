@@ -11,7 +11,7 @@ import AdminLayout from '@/components/layout/AdminLayout'
 import { getTransactionsPerHourUrl, getTransactionTrendUrl, getSecurityAuditUrl } from '@/utils/api'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
-// Custom Toaster component
+// Componente Toaster personalizado
 const Toaster = () => {
   const { toasts } = useToast()
 
@@ -60,6 +60,7 @@ export default function Security() {
   const [hourlyData, setHourlyData] = useState<HourlyTransaction[]>([])
   const [trendData, setTrendData] = useState<TrendData[]>([])
   const [auditLoading, setAuditLoading] = useState(false)
+  const [anomalies, setAnomalies] = useState<string[]>([])
   const { toast } = useToast()
 
   useEffect(() => {
@@ -67,11 +68,10 @@ export default function Security() {
     const rolId = localStorage.getItem('rolId')
     const jwtToken = localStorage.getItem('jwtToken')
 
-    console.log("userId:", userId, "rolId:", rolId, "jwtToken:", jwtToken);
-
     if (userId && rolId && jwtToken) {
       fetchSecurityData(userId, rolId, jwtToken)
     } else {
+      console.error('Información de usuario no encontrada en localStorage')
       toast({
         title: "Error",
         description: "Información de usuario no encontrada. Por favor, inicie sesión nuevamente.",
@@ -81,8 +81,8 @@ export default function Security() {
   }, [])
 
   const fetchSecurityData = async (userId: string, rolId: string, jwtToken: string) => {
-    console.log("Fetching security data...");
     try {
+      console.log('Iniciando fetchSecurityData con userId:', userId, 'rolId:', rolId)
       const [hourlyResponse, trendResponse] = await Promise.all([
         axios.get<ApiResponse<{ hourlyTransactions: HourlyTransaction[], dailyPercentageChange: number }>>(getTransactionsPerHourUrl(userId, rolId), {
           headers: { 'Authorization': `Bearer ${jwtToken}` }
@@ -91,14 +91,16 @@ export default function Security() {
           headers: { 'Authorization': `Bearer ${jwtToken}` }
         })
       ])
-      console.log("Hourly Response:", hourlyResponse.data);
-      console.log("Trend Response:", trendResponse.data);
+
+      console.log('Datos de transacciones por hora recibidos:', hourlyResponse.data)
+      console.log('Datos de tendencia de transacciones recibidos:', trendResponse.data)
 
       const processedHourlyData = hourlyResponse.data.data.hourlyTransactions.map(item => ({
         ...item,
         hour: item.hour,
         transactionCount: Number(item.transactionCount)
       }))
+      console.log('Datos de transacciones por hora procesados:', processedHourlyData)
       setHourlyData(processedHourlyData)
 
       const processedTrendData = trendResponse.data.data.trendData.map(item => ({
@@ -109,14 +111,18 @@ export default function Security() {
         }),
         value: Number(item.value)
       }))
+      console.log('Datos de tendencia de transacciones procesados:', processedTrendData)
       setTrendData(processedTrendData)
 
-      const anomalies = detectAnomalies(processedHourlyData, processedTrendData)
-      if (anomalies.length > 0) {
+      const detectedAnomalies = detectAnomalies(processedHourlyData, processedTrendData)
+      console.log('Anomalías detectadas:', detectedAnomalies)
+      setAnomalies(detectedAnomalies)
+
+      if (detectedAnomalies.length > 0) {
         toast({
           title: "Alerta de Seguridad",
-          description: `Se detectaron ${anomalies.length} anomalía${anomalies.length > 1 ? 's' : ''} en las transacciones recientes.`,
-          variant: "destructive",
+          description: `Se detectaron ${detectedAnomalies.length} anomalía${detectedAnomalies.length > 1 ? 's' : ''} en las transacciones recientes.`,
+          variant: "default",
         })
       }
     } catch (error) {
@@ -132,18 +138,19 @@ export default function Security() {
   }
 
   const detectAnomalies = (hourlyData: HourlyTransaction[], trendData: TrendData[]): string[] => {
+    console.log('Iniciando detección de anomalías con datos:', { hourlyData, trendData })
     const anomalies: string[] = []
-
-    console.log("Hourly Data:", hourlyData)
-    console.log("Trend Data:", trendData)
 
     if (hourlyData.length > 0) {
       const nonZeroTransactions = hourlyData.filter(hour => hour.transactionCount > 0)
+      console.log('Transacciones no nulas:', nonZeroTransactions)
       if (nonZeroTransactions.length > 0) {
         const avgTransactions = nonZeroTransactions.reduce((sum, hour) => sum + hour.transactionCount, 0) / nonZeroTransactions.length
-        const threshold = avgTransactions * 2
+        const threshold = avgTransactions * 5 // Aumentamos significativamente el umbral
+        console.log('Promedio de transacciones:', avgTransactions, 'Umbral:', threshold)
+
         hourlyData.forEach(hour => {
-          if (hour.transactionCount > threshold && hour.transactionCount > 10) {
+          if (hour.transactionCount > threshold && hour.transactionCount > 1000) { // Aumentamos el mínimo a 1000
             anomalies.push(`Pico inusual de transacciones a las ${hour.hour}:00 (${hour.transactionCount} transacciones)`)
           }
         })
@@ -156,13 +163,15 @@ export default function Security() {
         const currentValue = trendData[i].value
         if (prevValue > 0) {
           const change = (currentValue - prevValue) / prevValue
-          if (Math.abs(change) > 0.5 && Math.abs(currentValue - prevValue) > 10) {
+          console.log(`Cambio en tendencia: de ${prevValue} a ${currentValue}, cambio: ${change}`)
+          if (Math.abs(change) > 1 && Math.abs(currentValue - prevValue) > 1000) { // Aumentamos los umbrales
             anomalies.push(`Cambio brusco en la tendencia de transacciones el ${trendData[i].key} (${(change * 100).toFixed(2)}%)`)
           }
         }
       }
     }
 
+    console.log('Anomalías detectadas:', anomalies)
     return anomalies
   }
 
@@ -174,6 +183,7 @@ export default function Security() {
       const jwtToken = localStorage.getItem('jwtToken')
       
       if (userId && rolId && jwtToken) {
+        console.log('Iniciando auditoría de seguridad para userId:', userId, 'rolId:', rolId)
         const auditUrl = getSecurityAuditUrl()
         const response = await axios.post<ApiResponse<{ excelFileData: string }>>(
           auditUrl,
@@ -185,8 +195,9 @@ export default function Security() {
           }
         )
 
+        console.log('Respuesta de auditoría recibida:', response.data)
+
         if (response.data.success && response.data.data.excelFileData) {
-          // Convertir la cadena base64 a un Blob
           const byteCharacters = atob(response.data.data.excelFileData)
           const byteNumbers = new Array(byteCharacters.length)
           for (let i = 0; i < byteCharacters.length; i++) {
@@ -195,7 +206,6 @@ export default function Security() {
           const byteArray = new Uint8Array(byteNumbers)
           const blob = new Blob([byteArray], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
 
-          // Crear un enlace de descarga y hacer clic en él
           const link = document.createElement('a')
           link.href = window.URL.createObjectURL(blob)
           link.download = 'auditoria_seguridad.xlsx'
@@ -203,9 +213,11 @@ export default function Security() {
           link.click()
           document.body.removeChild(link)
 
+          console.log('Archivo de auditoría generado y descargado')
           toast({
             title: "Auditoría de Seguridad",
             description: "La auditoría de seguridad se ha completado y descargado correctamente.",
+            variant: "default",
           })
         } else {
           throw new Error("No se pudo generar el archivo de auditoría")
@@ -229,6 +241,12 @@ export default function Security() {
     </div>
   }
 
+  // Asegurarse de que hourlyData tenga 24 entradas, una para cada hora
+  const completeHourlyData = Array.from({ length: 24 }, (_, i) => {
+    const existingData = hourlyData.find(item => item.hour === i)
+    return existingData || { hour: i, transactionCount: 0, hourlyChange: 0 }
+  })
+
   return (
     <AdminLayout>
       <Toaster />
@@ -243,21 +261,15 @@ export default function Security() {
           <CardContent>
             <div className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={hourlyData}>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="rgba(255,255,255,0.1)"
-                  />
-                  <XAxis
-                    dataKey="hour"
-                    tick={{ fill: '#fff' }}
-                    tickFormatter={(value) => `${value}:00`}
+                <BarChart data={completeHourlyData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                  <XAxis 
+                    dataKey="hour" 
+                    tick={{ fill: '#fff' }} 
+                    tickFormatter={(value) => `${value}:00`} 
                     stroke="#fff"
                   />
-                  <YAxis
-                    tick={{ fill: '#fff' }}
-                    stroke="#fff"
-                  />
+                  <YAxis tick={{ fill: '#fff' }} stroke="#fff" />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: '#1a1a1a',
@@ -267,16 +279,10 @@ export default function Security() {
                     }}
                     labelStyle={{ color: '#fff' }}
                     cursor={{ fill: 'rgba(255,255,255,0.1)' }}
+                    formatter={(value, name, props) => [value, `${props.payload.hour}:00`]}
                   />
-                  <Legend
-                    wrapperStyle={{ color: '#fff' }}
-                  />
-                  <Bar
-                    dataKey="transactionCount"
-                    fill="#3b82f6"
-                    name="Transacciones"
-                    radius={[4, 4, 0, 0]}
-                  />
+                  <Legend wrapperStyle={{ color: '#fff' }} />
+                  <Bar dataKey="transactionCount" fill="#3b82f6" name="Transacciones" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -294,19 +300,9 @@ export default function Security() {
             <div className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={trendData}>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="rgba(255,255,255,0.1)"
-                  />
-                  <XAxis
-                    dataKey="key"
-                    tick={{ fill: '#fff' }}
-                    stroke="#fff"
-                  />
-                  <YAxis
-                    tick={{ fill: '#fff' }}
-                    stroke="#fff"
-                  />
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                  <XAxis dataKey="key" tick={{ fill: '#fff' }} stroke="#fff" />
+                  <YAxis tick={{ fill: '#fff' }} stroke="#fff" />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: '#1a1a1a',
@@ -316,23 +312,33 @@ export default function Security() {
                     }}
                     labelStyle={{ color: '#fff' }}
                   />
-                  <Legend
-                    wrapperStyle={{ color: '#fff' }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="value"
-                    stroke="#3b82f6"
-                    name="Transacciones"
-                    strokeWidth={2}
-                    dot={{ fill: '#3b82f6' }}
-                  />
+                  <Legend wrapperStyle={{ color: '#fff' }} />
+                  <Line type="monotone" dataKey="value" stroke="#3b82f6" name="Transacciones" strokeWidth={2} dot={{ fill: '#3b82f6' }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
       </div>
+      {anomalies.length > 0 && (
+        <div className="mt-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>Anomalías Detectadas</CardTitle>
+              <CardDescription>
+                Se han detectado las siguientes anomalías en las transacciones recientes
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="list-disc pl-5">
+                {anomalies.map((anomaly, index) => (
+                  <li key={index} className="text-yellow-500">{anomaly}</li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        </div>
+      )}
       <div className="mt-8">
         <Card>
           <CardHeader>
@@ -343,8 +349,12 @@ export default function Security() {
           </CardHeader>
           <CardContent>
             <Button onClick={runSecurityAudit} disabled={auditLoading}>
-              {auditLoading ? <Icons.spinner className="mr-2 h-4 w-4 animate-spin" /> : null}
-              {auditLoading ? "Generando auditoría..." : "Iniciar Auditoría de Seguridad"}
+              {auditLoading ? <>
+                  <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
+                  Generando auditoría...
+                </>
+                : "Iniciar Auditoría de Seguridad"
+              }
             </Button>
           </CardContent>
         </Card>
