@@ -86,8 +86,8 @@ const TransactionDocumentationPage = () => {
                   <h3 className="text-lg font-semibold mt-4 mb-2 text-gray-200">Cuerpo de la Solicitud</h3>
                   <pre className="bg-gray-700 p-2 rounded text-gray-100 mb-2 whitespace-pre-wrap">
                     {`{
-  "userBankTransactionId": '${userId || '&lt;userId&gt;'}',
-  "tag": '&lt;etiqueta_personalizada_del_banco&gt;',
+  "userBankTransactionId": "${userId || '&lt;userId&gt;'}",
+  "tag": "&lt;etiqueta_personalizada_del_banco&gt;",
   "transactionData": {
     // Objeto con datos específicos de la transacción definidos por el banco
     // Ejemplo:
@@ -133,10 +133,11 @@ const TransactionDocumentationPage = () => {
               <CardContent>
                 {serviceHealth ? (
                   <div className="space-y-2">
-                    <p>Estado: {serviceHealth.isHealthy ?
-                      <span className="text-green-400">Saludable</span> :
-                      <span className="text-red-400">No Saludable</span>}
-                    </p>
+                    <p>Estado: {serviceHealth.isHealthy ? (
+                      <span className="text-green-400">Saludable</span>
+                    ) : (
+                      <span className="text-red-400">No Saludable</span>
+                    )}</p>
                     <p>Versión: {serviceHealth.version}</p>
                     <p>Nombre de la Red: {serviceHealth.networkName}</p>
                   </div>
