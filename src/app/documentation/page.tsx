@@ -133,11 +133,10 @@ const TransactionDocumentationPage = () => {
               <CardContent>
                 {serviceHealth ? (
                   <div className="space-y-2">
-                    <p>Estado: {serviceHealth.isHealthy ? (
-                      <span className="text-green-400">Saludable</span>
-                    ) : (
-                      <span className="text-red-400">No Saludable</span>
-                    )}</p>
+                    <p>Estado: {serviceHealth.isHealthy ?
+                      <span className="text-green-400">Saludable</span> :
+                      <span className="text-red-400">No Saludable</span>}
+                    </p>
                     <p>Versión: {serviceHealth.version}</p>
                     <p>Nombre de la Red: {serviceHealth.networkName}</p>
                   </div>
@@ -157,7 +156,7 @@ const TransactionDocumentationPage = () => {
                   Para visualizar el dashboard de Tangle en una ventana de incógnito de Google Chrome, siga estos pasos:
                 </p>
                 <ol className="list-decimal list-inside text-gray-300 mb-4 space-y-2">
-                  <li>Copie la URL del dashboard de Tangle haciendo clic en el botón "Copiar URL".</li>
+                  <li>Copie la URL del dashboard de Tangle haciendo clic en el botón &quot;Copiar URL&quot;.</li>
                   <li>Abra una nueva ventana de incógnito en Google Chrome (Ctrl+Shift+N en Windows/Linux o Cmd+Shift+N en Mac).</li>
                   <li>Pegue la URL copiada en la barra de direcciones de la ventana de incógnito y presione Enter.</li>
                 </ol>
