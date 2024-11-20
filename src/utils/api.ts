@@ -41,3 +41,6 @@ export const getUsersUrl = () =>
 
 export const getSecurityAuditUrl = () =>
     `${TRANSACTION_API_URL}/ssptbpetdlt/transaction/api/v1/Audit/full-audit`
+
+export const getTransactionTestUrl = () =>
+    `${TRANSACTION_API_URL}/ssptbpetdlt/transaction/api/v1/Transaction/create-test`
