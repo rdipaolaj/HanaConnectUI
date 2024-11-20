@@ -86,8 +86,8 @@ const TransactionDocumentationPage = () => {
                   <h3 className="text-lg font-semibold mt-4 mb-2 text-gray-200">Cuerpo de la Solicitud</h3>
                   <pre className="bg-gray-700 p-2 rounded text-gray-100 mb-2 whitespace-pre-wrap">
                     {`{
-  "userBankTransactionId": "${userId || '<userId>'}",
-  "tag": "<etiqueta_personalizada_del_banco>",
+  "userBankTransactionId": '${userId || '&lt;userId&gt;'}',
+  "tag": '&lt;etiqueta_personalizada_del_banco&gt;',
   "transactionData": {
     // Objeto con datos específicos de la transacción definidos por el banco
     // Ejemplo:
@@ -109,11 +109,11 @@ const TransactionDocumentationPage = () => {
   "statusCode": 200,
   "message": "Transacción registrada exitosamente.",
   "data": {
-    "transactionId": "<id_de_transaccion_generado>",
-    "blockId": "<id_del_bloque_en_la_cadena>"
+    "transactionId": "&lt;id_de_transaccion_generado&gt;",
+    "blockId": "&lt;id_del_bloque_en_la_cadena&gt;"
   },
-  "transactionId": "<id_de_transaccion_del_sistema>",
-  "timestamp": "<fecha_y_hora_de_la_transaccion>",
+  "transactionId": "&lt;id_de_transaccion_del_sistema&gt;",
+  "timestamp": "&lt;fecha_y_hora_de_la_transaccion&gt;",
   "errors": [],
   "metadata": {}
 }`}
@@ -161,7 +161,7 @@ const TransactionDocumentationPage = () => {
                   <li>Pegue la URL copiada en la barra de direcciones de la ventana de incógnito y presione Enter.</li>
                 </ol>
                 <div className="flex space-x-4">
-                  <Button 
+                  <Button
                     onClick={copyToClipboard}
                     className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
                   >
